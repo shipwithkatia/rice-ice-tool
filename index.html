@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RICE / ICE Prioritization</title>
+<meta name="description" content="Score and rank features with the RICE and ICE prioritization frameworks. Runs entirely in your browser.">
+<meta property="og:title" content="RICE / ICE Prioritization">
+<meta property="og:description" content="Score, rank, and defend what you build next — free, no login, runs entirely in your browser.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%232B3A55%22/><text x=%2250%22 y=%2268%22 font-size=%2258%22 font-family=%22Georgia,serif%22 font-weight=%22700%22 fill=%22%23F5EBD6%22 text-anchor=%22middle%22>R</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FAF9F4;
+    --ink: #1C1B18;
+    --ink-muted: #6B6459;
+    --structure: #2B3A55;
+    --structure-soft: #E7E9EE;
+    --gold: #B8862B;
+    --gold-soft: #F5EBD6;
+    --border: #DCD6C9;
+    --danger: #8C3B2E;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  header p.sub {
+    margin: 0 0 20px;
+    color: var(--ink-muted);
+    font-size: 1.05rem;
+    max-width: 52ch;
+  }
+
+  details.how {
+    margin-bottom: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  details.how summary {
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--structure);
+    font-weight: 500;
+  }
+
+  details.how summary:focus-visible,
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  .tab:focus-visible {
+    outline: 2px solid var(--structure);
+    outline-offset: 2px;
+  }
+
+  details.how .how-body {
+    margin-top: 12px;
+    color: var(--ink-muted);
+    font-size: 0.92rem;
+    max-width: 62ch;
+  }
+
+  details.how .formula {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--structure-soft);
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    display: block;
+    width: fit-content;
+    margin: 10px 0 18px;
+    color: var(--structure);
+    font-size: 0.85rem;
+  }
+
+  details.how .scale-note {
+    font-style: italic;
+    margin: 4px 0 20px;
+  }
+
+  details.how .how-body br { display: none; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    background: none;
+    border: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 10px 4px;
+    margin-right: 20px;
+    color: var(--ink-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    position: relative;
+    top: 1px;
+  }
+
+  .tab.active {
+    color: var(--structure);
+    border-bottom-color: var(--structure);
+  }
+
+  .col-labels {
+    display: grid;
+    gap: 10px;
+    padding: 0 14px 8px;
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+  }
+
+  .col-labels span:last-child, .row .score { text-align: right; }
+
+  #rice-panel .col-labels,
+  #rice-panel .row {
+    grid-template-columns: 2fr 0.9fr 1.1fr 1fr 0.9fr 1fr 32px;
+  }
+
+  #ice-panel .col-labels,
+  #ice-panel .row {
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 32px;
+  }
+
+  .rows { display: flex; flex-direction: column; }
+
+  .row {
+    display: grid;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    background: transparent;
+  }
+
+  .row.top {
+    border-left-color: var(--gold);
+    background: var(--gold-soft);
+  }
+
+  .row.top .rank-note {
+    display: block;
+    font-size: 0.72rem;
+    color: #7A5A1D;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .row input[type="text"],
+  .row input[type="number"],
+  .row select {
+    width: 100%;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--ink);
+  }
+
+  .score {
+    position: relative;
+    text-align: right;
+    overflow: hidden;
+    border-radius: var(--radius);
+    padding: 6px 8px;
+  }
+
+  .score-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(43, 58, 85, 0.16);
+    z-index: 0;
+    transition: width 0.15s ease;
+  }
+
+  .score-num {
+    position: relative;
+    z-index: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--structure);
+  }
+
+  .row label { display: none; }
+
+  .row .del {
+    background: none;
+    border: none;
+    color: var(--ink-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 4px;
+    border-radius: var(--radius);
+  }
+
+  .row .del:hover { color: var(--danger); }
+
+  .add-row {
+    margin-top: 14px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    width: 100%;
+    color: var(--ink-muted);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .add-row:hover { border-color: var(--structure); color: var(--structure); }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+
+  .actions button {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .actions button:hover { border-color: var(--structure); }
+
+  .actions button.clear-all { color: var(--danger); border-color: var(--danger); background: #fff; margin-left: auto; }
+
+  .empty {
+    padding: 32px 14px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.92rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .empty .load-example {
+    display: inline-block;
+    margin-top: 10px;
+    background: none;
+    border: 1px solid var(--structure);
+    color: var(--structure);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .empty .load-example:hover { background: var(--structure); color: #fff; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--ink-muted);
+    font-size: 0.82rem;
+  }
+
+  footer a { color: var(--structure); }
+
+  @media (max-width: 700px) {
+    .col-labels { display: none; }
+
+    #rice-panel .row, #ice-panel .row {
+      grid-template-columns: 1fr;
+      gap: 6px;
+      position: relative;
+      padding-right: 36px;
+    }
+
+    .row label {
+      font-size: 0.72rem;
+      color: var(--ink-muted);
+      display: block !important;
+      margin-bottom: 2px;
+    }
+
+    .row .field-wrap { margin-bottom: 4px; }
+    .row .del { position: absolute; top: 10px; right: 8px; }
+    .row .score { text-align: left; }
+    .row .score-num { font-size: 1.05rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>RICE / ICE Prioritization</h1>
+    <p class="sub">Score, rank, and defend what you build next — everything here runs in your browser, nothing is sent anywhere.</p>
+
+    <details class="how">
+      <summary>How the scoring works</summary>
+      <div class="how-body">
+        <strong>RICE</strong> — Reach (people affected per period) × Impact (0.25–3 scale) × Confidence (as a %), divided by Effort (person-months). Higher score, higher priority.
+        <div class="formula">Score = (Reach × Impact × Confidence) ÷ Effort</div>
+        <div class="scale-note">Pick one period for Reach (e.g. "per quarter") and use it consistently for every feature in this list — mixing periods makes scores impossible to compare.</div>
+        <div class="scale-note">RICE scores aren't on a fixed 0–100 scale — a "960" means nothing by itself. It only matters compared to the other RICE scores in this same list, which is why each score also shows as a filled bar relative to your highest-scoring feature. With only one feature in the list, there's nothing to compare it to, so no bar is shown.</div>
+        <strong>ICE</strong> — a faster, rougher cut: Impact, Confidence, and Ease, each scored 1–10, averaged.
+        <div class="formula">Score = (Impact + Confidence + Ease) ÷ 3</div>
+        <div class="scale-note">ICE scores are always out of 10, so a "7.0" does mean something on its own — unlike RICE.</div>
+      </div>
+    </details>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tab-rice" role="tab" aria-selected="true" aria-controls="rice-panel" tabindex="0">RICE</button>
+    <button class="tab" id="tab-ice" role="tab" aria-selected="false" aria-controls="ice-panel" tabindex="-1">ICE</button>
+  </div>
+
+  <section id="rice-panel" role="tabpanel" aria-labelledby="tab-rice">
+    <div class="col-labels">
+      <span>Feature</span>
+      <span title="Number of people/customers affected — pick one period (e.g. per quarter) and use it for every feature in this list, or scores won't be comparable">Reach</span>
+      <span title="How much it moves the needle for each person it reaches">Impact</span>
+      <span title="How sure you are about the Reach and Impact estimates">Confidence</span>
+      <span title="Estimated engineering work, in person-months">Effort</span>
+      <span title="Only meaningful compared to other scores in this list — not a fixed scale">Score</span><span></span>
+    </div>
+    <div class="rows" id="rice-rows"></div>
+    <div class="empty" id="rice-empty" hidden>
+      No features yet.<br>
+      <button class="load-example" id="rice-load-example">Load an example</button>
+    </div>
+    <button class="add-row" id="rice-add">+ Add a feature</button>
+  </section>
+
+  <section id="ice-panel" role="tabpanel" aria-labelledby="tab-ice" hidden>
+    <div class="col-labels">
+      <span>Feature</span>
+      <span title="1 = barely moves the needle, 10 = huge if it works">Impact</span>
+      <span title="1 = mostly a guess, 10 = you have strong evidence">Confidence</span>
+      <span title="1 = a major undertaking, 10 = very quick to build">Ease</span>
+      <span title="Average of Impact, Confidence, and Ease — always out of 10">Score</span><span></span>
+    </div>
+    <div class="rows" id="ice-rows"></div>
+    <div class="empty" id="ice-empty" hidden>
+      No features yet.<br>
+      <button class="load-example" id="ice-load-example">Load an example</button>
+    </div>
+    <button class="add-row" id="ice-add">+ Add a feature</button>
+  </section>
+
+  <div class="actions">
+    <button id="copy-md">Copy as Markdown</button>
+    <button id="export-csv">Export CSV</button>
+    <button class="clear-all" id="clear-all">Clear all</button>
+  </div>
+
+  <footer>
+    Data is stored only in this browser (localStorage) — nothing is sent to a server.
+    Source on <a href="https://github.com/" id="repo-link">GitHub</a>. <!-- update this href to your repo once published -->
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  const IMPACT_OPTIONS = [
+    { label: "Massive (3)", value: 3 },
+    { label: "High (2)", value: 2 },
+    { label: "Medium (1)", value: 1 },
+    { label: "Low (0.5)", value: 0.5 },
+    { label: "Minimal (0.25)", value: 0.25 },
+  ];
+
+  const CONFIDENCE_OPTIONS = [
+    { label: "High (100%)", value: 100 },
+    { label: "Medium (80%)", value: 80 },
+    { label: "Low (50%)", value: 50 },
+  ];
+
+  const STORAGE_KEYS = { rice: "rice_ice_tool.rice.v1", ice: "rice_ice_tool.ice.v1" };
+  const VISITED_KEY = "rice_ice_tool.visited.v1";
+
+  const state = {
+    rice: loadState("rice") || [],
+    ice: loadState("ice") || [],
+    mode: "rice",
+  };
+
+  function seedRice() {
+    return [
+      { name: "Onboarding checklist redesign", reach: 1200, impact: 2, confidence: 80, effort: 2 },
+      { name: "Dark mode", reach: 3000, impact: 1, confidence: 80, effort: 1 },
+    ];
+  }
+
+  function seedIce() {
+    return [
+      { name: "Onboarding checklist redesign", impact: 8, confidence: 7, ease: 6 },
+      { name: "Dark mode", impact: 5, confidence: 8, ease: 8 },
+    ];
+  }
+
+  function loadState(mode) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS[mode]);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveState(mode) {
+    try {
+      localStorage.setItem(STORAGE_KEYS[mode], JSON.stringify(state[mode]));
+    } catch (e) {
+      showToast("Couldn't save — browser storage may be full or disabled.");
+    }
+  }
+
+  function riceScore(item) {
+    const effort = Number(item.effort);
+    if (!effort || effort <= 0) return 0;
+    const reach = Math.max(0, Number(item.reach) || 0);
+    return (reach * Number(item.impact) * (Number(item.confidence) / 100)) / effort;
+  }
+
+  function iceScore(item) {
+    return (Number(item.impact) + Number(item.confidence) + Number(item.ease)) / 3;
+  }
+
+  function fmtScore(n) {
+    if (!isFinite(n)) return "—";
+    const rounded = n >= 100 ? Math.round(n) : Math.round(n * 10) / 10;
+    return rounded.toLocaleString("en-US");
+  }
+
+  function optionsHTML(options, selected) {
+    return options.map(o =>
+      `<option value="${o.value}" ${Number(selected) === o.value ? "selected" : ""}>${o.label}</option>`
+    ).join("");
+  }
+
+  function renderRice() {
+    const container = document.getElementById("rice-rows");
+    const emptyEl = document.getElementById("rice-empty");
+    const items = state.rice.map((item, idx) => ({ item, idx, score: riceScore(item) }));
+    items.sort((a, b) => b.score - a.score);
+    const maxScore = Math.max(1, ...items.map(i => i.score));
+
+    emptyEl.hidden = items.length > 0;
+    container.innerHTML = items.map(({ item, idx, score }, rank) => `
+      <div class="row ${rank === 0 && items.length > 1 ? "top" : ""}" data-idx="${idx}">
+        <div class="field-wrap">
+          <label>Feature</label>
+          <input type="text" class="f-name" value="${escapeAttr(item.name)}" placeholder="Feature name" aria-label="Feature name">
+          <span class="rank-note" ${rank === 0 && items.length > 1 ? "" : "hidden"}>Top priority</span>
+        </div>
+        <div class="field-wrap"><label>Reach (per period)</label><input type="number" class="f-reach" min="0" value="${item.reach}" aria-label="Reach, number of people per period"></div>
+        <div class="field-wrap"><label>Impact</label><select class="f-impact" aria-label="Impact">${optionsHTML(IMPACT_OPTIONS, item.impact)}</select></div>
+        <div class="field-wrap"><label>Confidence</label><select class="f-confidence" aria-label="Confidence">${optionsHTML(CONFIDENCE_OPTIONS, item.confidence)}</select></div>
+        <div class="field-wrap"><label>Effort (months)</label><input type="number" class="f-effort" min="0.1" step="0.1" value="${item.effort}" aria-label="Effort in person-months"></div>
+        <div class="score">
+          <div class="score-bar" style="width: ${items.length > 1 ? (score / maxScore * 100).toFixed(0) : 0}%"></div>
+          <span class="score-num">${fmtScore(score)}</span>
+        </div>
+        <button class="del" aria-label="Remove ${escapeAttr(item.name) || "this feature"}" title="Remove">×</button>
+      </div>
+    `).join("");
+
+    attachRowHandlers(container, "rice");
+  }
+
+  function renderIce() {
+    const container = document.getElementById("ice-rows");
+    const emptyEl = document.getElementById("ice-empty");
+    const items = state.ice.map((item, idx) => ({ item, idx, score: iceScore(item) }));
+    items.sort((a, b) => b.score - a.score);
+
+    emptyEl.hidden = items.length > 0;
+    container.innerHTML = items.map(({ item, idx, score }, rank) => `
+      <div class="row ${rank === 0 && items.length > 1 ? "top" : ""}" data-idx="${idx}">
+        <div class="field-wrap">
+          <label>Feature</label>
+          <input type="text" class="f-name" value="${escapeAttr(item.name)}" placeholder="Feature name" aria-label="Feature name">
+          <span class="rank-note" ${rank === 0 && items.length > 1 ? "" : "hidden"}>Top priority</span>
+        </div>
+        <div class="field-wrap"><label>Impact (1-10)</label><input type="number" class="f-impact" min="1" max="10" value="${item.impact}" aria-label="Impact, 1 to 10"></div>
+        <div class="field-wrap"><label>Confidence (1-10)</label><input type="number" class="f-confidence" min="1" max="10" value="${item.confidence}" aria-label="Confidence, 1 to 10"></div>
+        <div class="field-wrap"><label>Ease (1-10)</label><input type="number" class="f-ease" min="1" max="10" value="${item.ease}" aria-label="Ease, 1 to 10"></div>
+        <div class="score">
+          <div class="score-bar" style="width: ${(score / 10 * 100).toFixed(0)}%"></div>
+          <span class="score-num">${fmtScore(score)}</span>
+        </div>
+        <button class="del" aria-label="Remove ${escapeAttr(item.name) || "this feature"}" title="Remove">×</button>
+      </div>
+    `).join("");
+
+    attachRowHandlers(container, "ice");
+  }
+
+  // Re-sort by moving EXISTING row elements to their new position, rather
+  // than destroying and rebuilding them. Rebuilding via innerHTML would
+  // detach whatever the browser is mid-way through focusing (e.g. the
+  // user just pressed Tab to move into this exact row) -- losing focus
+  // entirely. This preserves every input's identity across a re-sort.
+  function resortAndHighlight(mode) {
+    const container = document.getElementById(mode === "rice" ? "rice-rows" : "ice-rows");
+    const rowEls = Array.from(container.children);
+    const scored = rowEls.map(el => {
+      const idx = Number(el.dataset.idx);
+      const item = state[mode][idx];
+      const score = mode === "rice" ? riceScore(item) : iceScore(item);
+      return { el, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const maxScore = mode === "rice" ? Math.max(1, ...scored.map(s => s.score)) : 10;
+
+    scored.forEach(({ el, score }, rank) => {
+      // Skip repositioning the row the person is currently typing in --
+      // moving an element that contains focus can drop focus entirely in
+      // some browsers. It settles into place next time (when this row
+      // loses focus and triggers its own reorder).
+      if (!el.contains(document.activeElement)) {
+        container.appendChild(el); // moves the existing node; does not recreate it
+      }
+      const isTop = rank === 0 && scored.length > 1;
+      el.classList.toggle("top", isTop);
+      const note = el.querySelector(".rank-note");
+      if (note) note.hidden = !isTop;
+      const scoreNumEl = el.querySelector(".score-num");
+      if (scoreNumEl) scoreNumEl.textContent = fmtScore(score);
+      const barEl = el.querySelector(".score-bar");
+      if (barEl) {
+        const pct = (mode === "rice" && scored.length <= 1) ? 0 : Math.max(0, Math.min(100, (score / maxScore) * 100));
+        barEl.style.width = pct.toFixed(0) + "%";
+      }
+    });
+  }
+
+  function attachRowHandlers(container, mode) {
+    container.querySelectorAll(".row").forEach(rowEl => {
+      const idx = Number(rowEl.dataset.idx);
+      const item = state[mode][idx];
+
+      const updateAllBars = () => {
+        // Recompute every row's bar, not just this one -- in RICE mode the
+        // scale is relative to the current max score, so editing one row
+        // can change what "100%" means for every other row too.
+        const container = document.getElementById(mode === "rice" ? "rice-rows" : "ice-rows");
+        const rowEls = Array.from(container.children);
+        const scored = rowEls.map(rEl => {
+          const rIdx = Number(rEl.dataset.idx);
+          const rItem = state[mode][rIdx];
+          return { el: rEl, score: mode === "rice" ? riceScore(rItem) : iceScore(rItem) };
+        });
+        const maxScore = mode === "rice" ? Math.max(1, ...scored.map(s => s.score)) : 10;
+        scored.forEach(({ el: rEl, score }) => {
+          const numEl = rEl.querySelector(".score-num");
+          const barEl = rEl.querySelector(".score-bar");
+          if (numEl) numEl.textContent = fmtScore(score);
+          if (barEl) {
+            const pct = (mode === "rice" && scored.length <= 1) ? 0 : Math.max(0, Math.min(100, (score / maxScore) * 100));
+            barEl.style.width = pct.toFixed(0) + "%";
+          }
+        });
+      };
+
+      const bind = (selector, key, isNumber, clamp) => {
+        const el = rowEl.querySelector(selector);
+        if (!el) return;
+
+        // Update state and the score shown in THIS row on every keystroke,
+        // without touching the DOM elsewhere -- rebuilding the row list
+        // mid-keystroke (e.g. to re-sort) would steal focus and break
+        // typing after the first character.
+        el.addEventListener("input", () => {
+          item[key] = isNumber ? Number(el.value) : el.value;
+          saveState(mode);
+          updateAllBars();
+        });
+
+        // Re-sort and reapply the "top priority" highlight only once the
+        // person is done with this field (they've tabbed/clicked away, or
+        // pressed Enter) -- that's when losing focus is expected anyway.
+        el.addEventListener("blur", () => {
+          if (isNumber && clamp) {
+            const raw = Number(el.value);
+            const fixed = Number.isFinite(raw)
+              ? Math.min(clamp.max ?? Infinity, Math.max(clamp.min, raw))
+              : clamp.min;
+            item[key] = fixed;
+            el.value = fixed;
+            saveState(mode);
+          }
+          // Deferred to the next tick: reordering synchronously here can
+          // shift layout mid-click if the person's mouse is already headed
+          // for another button (e.g. delete) on blur -- mousedown would
+          // hit the old position, mouseup the shifted one, and browsers
+          // drop a click when mousedown/mouseup targets don't match. A
+          // macrotask delay lets any in-flight click resolve first.
+          setTimeout(() => resortAndHighlight(mode), 0);
+        });
+
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") el.blur();
+        });
+      };
+
+      bind(".f-name", "name", false);
+      if (mode === "rice") {
+        bind(".f-reach", "reach", true, { min: 0 });
+        bind(".f-impact", "impact", true);
+        bind(".f-confidence", "confidence", true);
+        bind(".f-effort", "effort", true, { min: 0.1 });
+      } else {
+        bind(".f-impact", "impact", true, { min: 1, max: 10 });
+        bind(".f-confidence", "confidence", true, { min: 1, max: 10 });
+        bind(".f-ease", "ease", true, { min: 1, max: 10 });
+      }
+
+      rowEl.querySelector(".del").addEventListener("click", () => {
+        state[mode].splice(idx, 1);
+        saveState(mode);
+        render();
+      });
+    });
+  }
+
+  function render() {
+    if (state.mode === "rice") renderRice(); else renderIce();
+  }
+
+  function escapeAttr(str) {
+    return String(str ?? "").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 2200);
+  }
+
+  // Tabs
+  const tabButtons = [document.getElementById("tab-rice"), document.getElementById("tab-ice")];
+  tabButtons[0].addEventListener("click", () => switchTab("rice"));
+  tabButtons[1].addEventListener("click", () => switchTab("ice"));
+
+  document.querySelector(".tabs").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const currentIndex = tabButtons.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    e.preventDefault();
+    const nextIndex = e.key === "ArrowRight"
+      ? (currentIndex + 1) % tabButtons.length
+      : (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+    tabButtons[nextIndex].focus();
+    switchTab(nextIndex === 0 ? "rice" : "ice");
+  });
+
+  function switchTab(mode) {
+    state.mode = mode;
+    tabButtons.forEach((btn, i) => {
+      const isActive = (mode === "rice" && i === 0) || (mode === "ice" && i === 1);
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive);
+      btn.tabIndex = isActive ? 0 : -1;
+    });
+    document.getElementById("rice-panel").hidden = mode !== "rice";
+    document.getElementById("ice-panel").hidden = mode !== "ice";
+    render();
+  }
+
+  // Add row
+  document.getElementById("rice-add").addEventListener("click", () => {
+    state.rice.push({ name: "", reach: 100, impact: 1, confidence: 80, effort: 1 });
+    saveState("rice");
+    render();
+    focusLastName("rice-rows");
+  });
+
+  document.getElementById("ice-add").addEventListener("click", () => {
+    state.ice.push({ name: "", impact: 5, confidence: 5, ease: 5 });
+    saveState("ice");
+    render();
+    focusLastName("ice-rows");
+  });
+
+  function focusLastName(containerId) {
+    const rows = document.getElementById(containerId).querySelectorAll(".f-name");
+    if (rows.length) rows[rows.length - 1].focus();
+  }
+
+  // First-time visitors get the explanation open by default; once they've
+  // seen it, respect whatever open/closed state they leave it in.
+  if (!localStorage.getItem(VISITED_KEY)) {
+    document.querySelector("details.how").setAttribute("open", "");
+    try { localStorage.setItem(VISITED_KEY, "1"); } catch (e) { /* fine to skip */ }
+  }
+
+  // Load example
+  document.getElementById("rice-load-example").addEventListener("click", () => {
+    state.rice = seedRice();
+    saveState("rice");
+    render();
+  });
+
+  document.getElementById("ice-load-example").addEventListener("click", () => {
+    state.ice = seedIce();
+    saveState("ice");
+    render();
+  });
+
+  // Clear all
+  document.getElementById("clear-all").addEventListener("click", () => {
+    if (!confirm(`Clear all ${state.mode.toUpperCase()} features? This can't be undone.`)) return;
+    state[state.mode] = [];
+    saveState(state.mode);
+    render();
+    showToast("Cleared.");
+  });
+
+  // Export CSV
+  document.getElementById("export-csv").addEventListener("click", () => {
+    const mode = state.mode;
+    const items = mode === "rice"
+      ? state.rice.map(i => ({ ...i, score: riceScore(i) }))
+      : state.ice.map(i => ({ ...i, score: iceScore(i) }));
+    items.sort((a, b) => b.score - a.score);
+
+    let rows;
+    if (mode === "rice") {
+      rows = [["Feature", "Reach", "Impact", "Confidence %", "Effort (months)", "RICE Score"]];
+      items.forEach(i => rows.push([i.name, i.reach, i.impact, i.confidence, i.effort, fmtScore(i.score)]));
+    } else {
+      rows = [["Feature", "Impact", "Confidence", "Ease", "ICE Score"]];
+      items.forEach(i => rows.push([i.name, i.impact, i.confidence, i.ease, fmtScore(i.score)]));
+    }
+
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${mode}-prioritization.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Copy as Markdown
+  document.getElementById("copy-md").addEventListener("click", async () => {
+    const mode = state.mode;
+    const items = mode === "rice"
+      ? state.rice.map(i => ({ ...i, score: riceScore(i) }))
+      : state.ice.map(i => ({ ...i, score: iceScore(i) }));
+    items.sort((a, b) => b.score - a.score);
+
+    let md;
+    if (mode === "rice") {
+      md = "| Feature | Reach | Impact | Confidence | Effort | Score |\n|---|---|---|---|---|---|\n";
+      items.forEach(i => { md += `| ${i.name || "—"} | ${i.reach} | ${i.impact} | ${i.confidence}% | ${i.effort} | ${fmtScore(i.score)} |\n`; });
+    } else {
+      md = "| Feature | Impact | Confidence | Ease | Score |\n|---|---|---|---|---|\n";
+      items.forEach(i => { md += `| ${i.name || "—"} | ${i.impact} | ${i.confidence} | ${i.ease} | ${fmtScore(i.score)} |\n`; });
+    }
+
+    try {
+      await navigator.clipboard.writeText(md);
+      showToast("Copied as Markdown.");
+    } catch (e) {
+      showToast("Couldn't copy — your browser may be blocking clipboard access.");
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
