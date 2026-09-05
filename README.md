@@ -4,7 +4,7 @@ A single-page tool for scoring and ranking feature ideas using the RICE and
 ICE prioritization frameworks. No backend, no build step, no dependencies —
 open `index.html` in a browser and it works.
 
-**[Live demo →](#)** *(add your GitHub Pages link here once published)*
+**[Live demo →](https://shipwithkatia.github.io/rice-ice-tool/)**
 
 ## Why this exists
 
