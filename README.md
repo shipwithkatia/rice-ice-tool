@@ -62,7 +62,7 @@ top-ranked row is highlighted → state saved to localStorage
 No installation needed — clone the repo and open the file:
 
 ```bash
-git clone https://github.com/<your-username>/rice-ice-tool.git
+git clone https://github.com/shipwithkatia/rice-ice-tool.git
 cd rice-ice-tool
 open index.html   # macOS; on Windows, just double-click the file
 ```
@@ -77,7 +77,7 @@ matter how much traffic it gets:
 2. Repo → Settings → Pages → under "Build and deployment," set Source to
    "Deploy from a branch," branch `main`, folder `/ (root)`
 3. Save — GitHub gives you a URL like
-   `https://<your-username>.github.io/rice-ice-tool/` within a minute or two
+   `https://shipwithkatia.github.io/rice-ice-tool/` within a minute or two
 
 ## Limitations
 
